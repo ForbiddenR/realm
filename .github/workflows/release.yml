@@ -42,12 +42,6 @@ jobs:
           mkdir -p release-${{ matrix.target }}
           cd release-${{ matrix.target }}
           tar -C ../target/${{ matrix.target }}/release -zcf realm-${{ matrix.target }}.tar.gz realm
-      - name: pack windows binary
-        if: "contains(matrix.target, 'windows')"
-        run: |
-          mkdir -p release-${{ matrix.target }}
-          cd release-${{ matrix.target }}
-          tar -C ../target/${{ matrix.target }}/release -zcf realm-${{ matrix.target }}.tar.gz realm.exe
       - name: add signature
         run: |
           cd release-${{ matrix.target }}
@@ -58,12 +52,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           files: release-${{ matrix.target }}/*
-  release-windows:
-    runs-on: windows-latest
-    strategy:
-      matrix:
-        target:
-          - x86_64-pc-windows-msvc
+
     steps:
       - uses: actions/checkout@v4
       - name: install toolchain
