@@ -1,18 +1,12 @@
 [package]
 name = "realm"
-version = "2.6.2"
+version = "0.1.0"
 authors = ["zhboner <zhboner@gmail.com>"]
 edition = "2021"
 
 
 [workspace]
-members = [
-    "realm_io",
-    "realm_lb",
-    "realm_core",
-    "realm_hook",
-    "realm_syscall"
-]
+members = ["realm_io", "realm_lb", "realm_core", "realm_hook", "realm_syscall"]
 
 
 [lib]
@@ -61,7 +55,14 @@ tokio = { version = "1", features = ["macros"] }
 
 
 [features]
-default = ["proxy", "balance", "multi-thread", "transport", "batched-udp", "brutal-shutdown"]
+default = [
+    "proxy",
+    "balance",
+    "multi-thread",
+    "transport",
+    "batched-udp",
+    "brutal-shutdown",
+]
 hook = ["realm_core/hook"]
 proxy = ["realm_core/proxy"]
 brutal-shutdown = ["realm_core/brutal-shutdown"]

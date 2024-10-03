@@ -1,12 +1,13 @@
 name: release
+
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  release:
+    types:
+      - published
 
 jobs:
   release-corss:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     strategy:
       matrix:
         target:
@@ -22,9 +23,8 @@ jobs:
       - name: install cross
         run: cargo install cross --git https://github.com/cross-rs/cross
       - name: compile
-        run: cross build --release --target=${{ matrix.target }}
+        run: cross build --release --target=${{ matrix.target }} --features 'mi-malloc'
       - name: pack unix binary
-        if: "!contains(matrix.target, 'windows')"
         run: |
           mkdir -p release-${{ matrix.target }}
           cd release-${{ matrix.target }}
@@ -34,7 +34,7 @@ jobs:
           cd release-${{ matrix.target }}
           sha256sum realm-${{ matrix.target }}.tar.gz > realm-${{ matrix.target }}.sha256
       - name: release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
