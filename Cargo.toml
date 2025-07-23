@@ -59,7 +59,7 @@ default = [
     "proxy",
     "balance",
     "multi-thread",
-    "transport",
+    # "transport",
     "batched-udp",
     "brutal-shutdown",
 ]
