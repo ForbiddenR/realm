@@ -55,7 +55,7 @@ pub async fn connect(raddr: &RemoteAddr, conn_opts: &ConnectOpts) -> Result<TcpS
         let socket = new_tcp_socket(&addr)?;
 
         // ignore error
-        let _ = socket.set_nodelay(true);
+        let _ = socket.set_tcp_nodelay(true);
         let _ = socket.set_reuse_address(true);
 
         if let Some(addr) = *bind_address {
