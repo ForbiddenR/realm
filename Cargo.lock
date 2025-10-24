@@ -1111,7 +1111,7 @@ dependencies = [
 
 [[package]]
 name = "realm"
-version = "1.3.11"
+version = "1.3.12"
 dependencies = [
  "cfg-if",
  "chrono",
