@@ -1,6 +1,6 @@
 [package]
 name = "realm"
-version = "1.3.13"
+version = "1.3.14"
 authors = ["zhboner <zhboner@gmail.com>"]
 edition = "2021"
 
@@ -28,7 +28,7 @@ futures = "0.3"
 walkdir = "2"
 
 # runtime
-tokio = { version = "1", features = ["rt"] }
+tokio = { version = "1",default-features = false, features = ["rt"] }
 
 # logger
 log = "0.4"
