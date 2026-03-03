@@ -68,13 +68,17 @@ The `realm` binary will be available in `target/release`.
 - proxy: enable proxy-protocol.
 - balance: enable load balance.
 - transport: enable ws/tls/wss.
+- transport-tls-ring: use [ring](https://github.com/briansmith/ring) as rustls backend.
+- transport-tls-awslc: use [aws-lc](https://github.com/aws/aws-lc-rs) as rustls backend.
 - batched-udp: enable more efficient udp on linux.
 - multi-thread: enable tokio's multi-threaded IO scheduler.
 - mi-malloc: custom memory allocator.
 - jemalloc: custom memory allocator.
 - page-alloc: custom memory allocator.
 
-Default: proxy + balance + transport + batched-udp + brutal-shutdown + multi-thread.
+Default: proxy + balance + transport + transport-tls-awslc + batched-udp + brutal-shutdown + multi-thread.
+
+Deafult-Slim: batched-udp + brutal-shutdown + multi-thread.
 
 See also: [Cargo.toml](Cargo.toml).
 
@@ -88,9 +92,18 @@ cargo build --release --no-default-features
 cargo build --release --features 'jemalloc'
 
 # fully customized
-cargo build --release
-    --no-default-features
+cargo build --release \
+    --no-default-features \
     --features 'transport, multi-thread, jemalloc'
+
+# (since v2.9) use ring as rustls backend
+cargo build --release \
+    --no-default-features \
+    --features 'multi-thread, brutal-shutdown' \
+    --features 'proxy, balance, batched-udp' \
+    --features 'transport, transport-tls-ring'
+# equals
+cargo build --release --no-default-features --features default-ring
 ```
 
 ### Cross Compile
@@ -114,6 +127,7 @@ FLAGS:
   -v, --version  show version
   -d, --daemon   run as a unix daemon
   -u, --udp      force enable udp forward
+  -m, --mtcp     force enable mptcp protocol
   -t, --ntcp     force disable tcp forward
   -6, --ipv6     force disable ipv6 mapped ipv4
   -f, --tfo      force enable tcp fast open -- deprecated
@@ -124,7 +138,8 @@ OPTIONS:
   -l, --listen <address>            listen address
   -r, --remote <address>            remote address
   -x, --through <address>           send through ip or address
-  -i, --interface <device>          bind to interface
+  -i, --interface <device>          send through interface
+  -e, --listen-interface <device>   listen interface
   -a, --listen-transport <options>  listen transport
   -b, --remote-transport <options>  remote transport
 
@@ -272,6 +287,8 @@ remote = "www.google.com:443"
 │   ├── udp_timeout
 │   ├── tcp_keepalive
 │   ├── tcp_keepalive_probe
+│   ├── send_mptcp
+│   ├── accept_mptcp
 │   ├── send_proxy
 │   ├── send_proxy_version
 │   ├── accept_proxy
@@ -545,6 +562,22 @@ TCP Keepalive retries.
 On Linux, this is equivalent to `ipv4.tcp_keepalive_probes`.
 
 default: 3
+
+#### network.send_mptcp: bool
+
+Enable MPTCP outbound connections on Linux.
+
+Requires a higher kernel version(>5.6) with `net.mptcp.enabled=1`.
+
+See also [Path Manager](https://www.mptcp.dev/pm.html) guidelines.
+
+default: false
+
+#### network.accept_mptcp: bool
+
+Enable MPTCP inbound connections on Linux.
+
+default: false
 
 #### network.send_proxy: bool
 
