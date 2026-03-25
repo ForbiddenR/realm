@@ -1,6 +1,6 @@
 [package]
 name = "realm"
-version = "26.3.11"
+version = "26.3.25"
 authors = ["zhboner <zhboner@gmail.com>"]
 edition = "2021"
 
