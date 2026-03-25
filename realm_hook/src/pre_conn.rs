@@ -1,22 +1,22 @@
 //! Pre-connect hook.
 
-use once_cell::unsync::OnceCell;
+use once_cell::sync::OnceCell;
 use libloading::Library;
 
 use super::call_ffi;
 
-static mut DYLIB: OnceCell<Library> = OnceCell::new();
+static DYLIB: OnceCell<Library> = OnceCell::new();
 
 /// Load a dynamic library.
 ///
 /// This is not thread-safe and must be called before interacting with FFI.
 pub fn load_dylib(path: &str) {
-    unsafe { DYLIB.set(Library::new(path).unwrap()).unwrap() }
+    DYLIB.set(unsafe { Library::new(path) }.unwrap()).unwrap()
 }
 
 /// Check if the dynamic library is loaded.
 pub fn is_loaded() -> bool {
-    unsafe { DYLIB.get().is_some() }
+    DYLIB.get().is_some()
 }
 
 /// Get the required length of first packet.
