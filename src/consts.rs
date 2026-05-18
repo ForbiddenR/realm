@@ -31,7 +31,7 @@ def_feat!(FEATURE_BALANCE, "balance");
 def_feat!(FEATURE_TRANSPORT, "transport");
 
 def_feat!(FEATURE_MULTI_THREAD, "multi-thread");
-def_feat!(FEATURE_MIMALLOC, "mimalloc");
+def_feat!(FEATURE_MIMALLOC, "mi-malloc");
 def_feat!(FEATURE_JEMALLOC, "jemalloc");
 
 pub struct Features {

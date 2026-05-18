@@ -1,6 +1,6 @@
 [package]
 name = "realm"
-version = "26.4.12"
+version = "26.5.18"
 authors = ["zhboner <zhboner@gmail.com>"]
 edition = "2021"
 
@@ -74,9 +74,9 @@ transport = ["realm_core/transport", "realm_core/transport-boost"]
 transport-tls-ring = ["realm_core/transport-tls-ring"]
 batched-udp = ["realm_core/batched-udp"]
 multi-thread = ["tokio/rt-multi-thread", "realm_core/multi-thread"]
-jemalloc = ["jemallocator"]
-mi-malloc = ["mimalloc"]
-page-alloc = ["mmap-allocator"]
+jemalloc = ["dep:jemallocator"]
+mi-malloc = ["dep:mimalloc"]
+page-alloc = ["dep:mmap-allocator"]
 
 [profile.release]
 opt-level = 3
