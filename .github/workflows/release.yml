@@ -21,9 +21,7 @@ jobs:
           toolchain: nightly
           targets: ${{ matrix.target }}
       - name: install zig
-        uses: mlugg/setup-zig@v1
-        with:
-          version: 0.14.1
+        uses: mlugg/setup-zig@v2
       - name: install cargo-zigbuild
         run: cargo install --locked cargo-zigbuild
       - name: compile
