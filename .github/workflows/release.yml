@@ -6,7 +6,7 @@ on:
       - published
 
 jobs:
-  release-corss:
+  release-cross:
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -15,15 +15,17 @@ jobs:
           - x86_64-unknown-linux-musl
     steps:
       - uses: actions/checkout@v4
-      - name: install toolchain
+      - name: install rust toolchain
         uses: dtolnay/rust-toolchain@master
         with:
-            toolchain: nightly
-            targets: ${{ matrix.target }}
-      - name: install cross
-        run: cargo install cross --git https://github.com/cross-rs/cross
+          toolchain: nightly
+          targets: ${{ matrix.target }}
+      - name: install zig
+        uses: mlugg/setup-zig@v1
+      - name: install cargo-zigbuild
+        run: cargo install --locked cargo-zigbuild
       - name: compile
-        run: cross build --release --target=${{ matrix.target }} --no-default-features --features 'default-slim jemalloc'
+        run: cargo zigbuild --release --target=${{ matrix.target }} --no-default-features --features 'default-slim jemalloc'
       - name: pack unix binary
         run: |
           mkdir -p release-${{ matrix.target }}
