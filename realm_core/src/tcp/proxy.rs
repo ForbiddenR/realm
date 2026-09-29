@@ -1,9 +1,9 @@
 use std::io::{Error, Result};
-use std::mem::MaybeUninit;
+use std::cell::OnceCell;
 use std::net::{SocketAddr, IpAddr, Ipv4Addr, Ipv6Addr};
 
 use log::{info, debug};
-use bytes::{BytesMut, Buf};
+use bytes::{Buf, BytesMut};
 
 use proxy_protocol::ProxyHeader;
 use proxy_protocol::{version1 as v1, version2 as v2};
@@ -26,19 +26,13 @@ pub async fn handle_proxy(src: &mut TcpStream, dst: &mut TcpStream, opts: ProxyO
         accept_proxy_timeout,
     } = opts;
 
-    let mut client_addr = MaybeUninit::<SocketAddr>::uninit();
-    let mut server_addr = MaybeUninit::<SocketAddr>::uninit();
-
-    // buf may not be used
-    let mut buf = MaybeUninit::<BytesMut>::uninit();
-
-    // with src and dst got from header
-    let mut fwd_hdr = false;
+    let client_addr = OnceCell::<SocketAddr>::new();
+    let server_addr = OnceCell::<SocketAddr>::new();
 
     // parse PROXY header from client and write log
     // may not get src and dst addr
     if accept_proxy {
-        let buf = buf.write(BytesMut::with_capacity(256));
+        let mut buf = BytesMut::with_capacity(256);
         buf.resize(256, 0);
 
         // FIXME: may not read the entire header
@@ -46,7 +40,7 @@ pub async fn handle_proxy(src: &mut TcpStream, dst: &mut TcpStream, opts: ProxyO
         // The receiver may apply a short timeout and decide to
         // abort the connection if the protocol header is not seen
         // within a few seconds (at least 3 seconds to cover a TCP retransmit).
-        let peek_n = timeoutfut(src.peek(buf), accept_proxy_timeout).await??;
+        let peek_n = timeoutfut(src.peek(&mut buf), accept_proxy_timeout).await??;
 
         buf.truncate(peek_n);
         debug!("[tcp]peek initial {} bytes: {:#x}", peek_n, buf);
@@ -60,14 +54,13 @@ pub async fn handle_proxy(src: &mut TcpStream, dst: &mut TcpStream, opts: ProxyO
 
         // handle parsed header, and print log
         if let Some((src, dst)) = handle_header(header) {
-            client_addr.write(src);
-            server_addr.write(dst);
-            fwd_hdr = true;
+            client_addr.set(src).unwrap();
+            server_addr.set(dst).unwrap();
         }
 
         // header has been parsed, remove these bytes from sock buffer.
         buf.truncate(parsed_n);
-        src.read_exact(buf).await?;
+        src.read_exact(&mut buf).await?;
 
         // do not send header to server
         if !send_proxy {
@@ -76,21 +69,23 @@ pub async fn handle_proxy(src: &mut TcpStream, dst: &mut TcpStream, opts: ProxyO
     }
 
     // use real addr
-    if !fwd_hdr {
-        client_addr.write(src.peer_addr()?);
+    if !client_addr.get().is_some() {
+        client_addr.set(src.peer_addr()?).unwrap();
         // FIXME: what is the dst addr here? seems not defined in the doc
         // the doc only mentions that this field is similar to X-Origin-To
         // which is seldom used
-        server_addr.write(match unsafe { client_addr.assume_init_ref() } {
-            SocketAddr::V4(_) => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
-            SocketAddr::V6(_) => SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)), 0),
-        });
+        server_addr
+            .set(match client_addr.get().unwrap() {
+                SocketAddr::V4(_) => SocketAddr::new(IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0)), 0),
+                SocketAddr::V6(_) => SocketAddr::new(IpAddr::V6(Ipv6Addr::new(0, 0, 0, 0, 0, 0, 0, 0)), 0),
+            })
+            .unwrap();
     }
 
     // Safety: sockaddr is always initialized
     // either parse from PROXY header or use real addr
-    let client_addr = unsafe { client_addr.assume_init() };
-    let server_addr = unsafe { server_addr.assume_init() };
+    let client_addr = client_addr.into_inner().unwrap();
+    let server_addr = server_addr.into_inner().unwrap();
 
     // write header
     let header = encode(make_header(client_addr, server_addr, send_proxy_version)).map_err(Error::other)?;
@@ -124,7 +119,7 @@ fn make_header(client_addr: SocketAddr, server_addr: SocketAddr, send_proxy_vers
 }
 
 fn make_header_v1(client_addr: SocketAddr, server_addr: SocketAddr) -> ProxyHeader {
-    debug!("[tcp]send proxy-protocol-v1: {} => {}", &client_addr, &server_addr);
+    debug!("[tcp]send proxy-protocol-v1: {} => {}", client_addr, server_addr);
 
     if client_addr.is_ipv4() {
         ProxyHeader::Version1 {
@@ -144,7 +139,7 @@ fn make_header_v1(client_addr: SocketAddr, server_addr: SocketAddr) -> ProxyHead
 }
 
 fn make_header_v2(client_addr: SocketAddr, server_addr: SocketAddr) -> ProxyHeader {
-    debug!("[tcp]send proxy-protocol-v2: {} => {}", &client_addr, &server_addr);
+    debug!("[tcp]send proxy-protocol-v2: {} => {}", client_addr, server_addr);
 
     ProxyHeader::Version2 {
         command: v2::ProxyCommand::Proxy,
@@ -187,11 +182,11 @@ fn handle_header_v1(addr: v1::ProxyAddresses) -> Option<(SocketAddr, SocketAddr)
             None
         }
         Ipv4 { source, destination } => {
-            info!("[tcp]accept proxy-protocol-v1: {} => {}", &source, &destination);
+            info!("[tcp]accept proxy-protocol-v1: {} => {}", source, destination);
             Some((SocketAddr::V4(source), SocketAddr::V4(destination)))
         }
         Ipv6 { source, destination } => {
-            info!("[tcp]accept proxy-protocol-v1: {} => {}", &source, &destination);
+            info!("[tcp]accept proxy-protocol-v1: {} => {}", source, destination);
             Some((SocketAddr::V6(source), SocketAddr::V6(destination)))
         }
     }
@@ -231,11 +226,11 @@ fn handle_header_v2(
 
     match addr {
         Address::Ipv4 { source, destination } => {
-            info!("[tcp]accept proxy-protocol-v2: {} => {}", &source, &destination);
+            info!("[tcp]accept proxy-protocol-v2: {} => {}", source, destination);
             Some((SocketAddr::V4(source), SocketAddr::V4(destination)))
         }
         Address::Ipv6 { source, destination } => {
-            info!("[tcp]accept proxy-protocol-v2: {} => {}", &source, &destination);
+            info!("[tcp]accept proxy-protocol-v2: {} => {}", source, destination);
             Some((SocketAddr::V6(source), SocketAddr::V6(destination)))
         }
         Address::Unspec => {
